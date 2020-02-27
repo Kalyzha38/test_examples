@@ -1,0 +1,59 @@
+    const firebaseConfig = {
+        apiKey: "AIzaSyDdNXdOk_HRhZh-Stfg5qfeyPUT_xsKohM",
+        authDomain: "green-waves.firebaseapp.com",
+        databaseURL: "https://green-waves.firebaseio.com",
+        projectId: "green-waves",
+        storageBucket: "green-waves.appspot.com",
+        messagingSenderId: "370245425380",
+        appId: "1:370245425380:web:664b3ad6695b58b46ef4f1",
+        measurementId: "G-QL2EC8GB7R"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    let data = firebase.database().ref('devices');
+
+    //getTelemetry('mqtt-001', data);
+    //getLightersOnCurrentRoute('mqtt-001', data);
+    //getTelemetryForAllDevices(data);
+
+    async function getLastRouteId(deviceId, databaseSnapshot){
+        let id = await databaseSnapshot.child(deviceId).once('value').then(function (snapshot) {
+            return snapshot.val().last_route_id;
+        });
+        return id;
+    }
+
+    async function getTelemetry(device_id, databaseSnapshot){
+        let last_route_id = await getLastRouteId(device_id, databaseSnapshot);
+        let telemetry = await databaseSnapshot.child(device_id + '/telemetry/' + last_route_id).once('value').then(function (snapshot) {
+            return snapshot.val();
+        });
+        //console.log(JSON.stringify(telemetry));
+        return telemetry;
+    }
+
+    async function getLightersOnCurrentRoute(device_id, databaseSnapshot){
+        let last_route_id = await getLastRouteId(device_id, databaseSnapshot);
+        let listOfLighters = await databaseSnapshot.child(device_id + '/routes/' + last_route_id + '/traffic_signals').once('value', function (snapshot) {
+            return snapshot.val();
+        });
+        //console.log(JSON.stringify(listOfLighters));
+        return listOfLighters;
+    }
+
+    async function getTelemetryForAllDevices(databaseSnapshot){
+        let allTelemetry = [];
+        let list_of_devices = await databaseSnapshot.once('value').then(function (snapshot) {
+            let tmp = [];
+            for (mqtt in snapshot.val()){
+                tmp.push(`${mqtt}`);
+            }
+            return tmp;
+        });
+        for (device in list_of_devices){
+            tmp = await getTelemetry(list_of_devices[device], databaseSnapshot);
+            allTelemetry.push(tmp);
+        }
+        //console.log(JSON.stringify(allTelemetry));
+        return allTelemetry;
+    }
